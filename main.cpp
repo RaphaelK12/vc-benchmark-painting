@@ -18,8 +18,13 @@
 
 #include <QCoreApplication>
 
+#ifdef _WIN64
 #define MEMALIGN_ALLOC(p, a, s) ((*(p)) = _aligned_malloc((s), (a)), *(p) ? 0 : errno)
 #define MEMALIGN_FREE(p) _aligned_free((p))
+#else
+#define MEMALIGN_ALLOC(p, a, s) ((*(p)) = ::aligned_alloc((a), (s)), *(p) ? 0 : errno)
+#define MEMALIGN_FREE(p) std::free((p))
+#endif
 
 #include "KoStreamedMath.h"
 #include <QElapsedTimer>

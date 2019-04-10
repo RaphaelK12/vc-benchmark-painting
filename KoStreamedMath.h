@@ -42,10 +42,17 @@
 #pragma GCC diagnostic ignored "-Wcast-align"
 #endif
 
+#ifdef USE_SSE
+using float_v = Vc::SSE::float_v;
+#else
+using float_v = Vc::float_v;
+#endif
+using float_m = typename float_v::mask_type;
+
 struct KoStreamedMath {
 
-using int_v = Vc::SimdArray<int, Vc::float_v::size()>;
-using uint_v = Vc::SimdArray<unsigned int, Vc::float_v::size()>;
+using int_v = Vc::SimdArray<int, float_v::size()>;
+using uint_v = Vc::SimdArray<unsigned int, float_v::size()>;
 
 
 static inline quint8 round_float_to_uint(float value) {
@@ -57,16 +64,16 @@ static inline quint8 lerp_mixed_u8_float(quint8 a, quint8 b, float alpha) {
 }
 
 /**
- * Get a vector containing first Vc::float_v::size() values of mask.
+ * Get a vector containing first float_v::size() values of mask.
  * Each source mask element is considered to be a 8-bit integer
  */
-static inline Vc::float_v fetch_mask_8(const quint8 *data) {
+static inline float_v fetch_mask_8(const quint8 *data) {
     uint_v data_i(data);
-    return Vc::simd_cast<Vc::float_v>(int_v(data_i));
+    return Vc::simd_cast<float_v>(int_v(data_i));
 }
 
 /**
- * Get an alpha values from Vc::float_v::size() pixels 32-bit each
+ * Get an alpha values from float_v::size() pixels 32-bit each
  * (4 channels, 8 bit per channel).  The alpha value is considered
  * to be stored in the most significant byte of the pixel
  *
@@ -78,7 +85,7 @@ static inline Vc::float_v fetch_mask_8(const quint8 *data) {
  *               causes \#GP (General Protection Exception)
  */
 template <bool aligned>
-static inline Vc::float_v fetch_alpha_32(const quint8 *data) {
+static inline float_v fetch_alpha_32(const quint8 *data) {
     uint_v data_i;
     if (aligned) {
         data_i.load((const quint32*)data, Vc::Aligned);
@@ -86,11 +93,11 @@ static inline Vc::float_v fetch_alpha_32(const quint8 *data) {
         data_i.load((const quint32*)data, Vc::Unaligned);
     }
 
-    return Vc::simd_cast<Vc::float_v>(int_v(data_i >> 24));
+    return Vc::simd_cast<float_v>(int_v(data_i >> 24));
 }
 
 /**
- * Get color values from Vc::float_v::size() pixels 32-bit each
+ * Get color values from float_v::size() pixels 32-bit each
  * (4 channels, 8 bit per channel).  The color data is considered
  * to be stored in the 3 least significant bytes of the pixel.
  *
@@ -103,9 +110,9 @@ static inline Vc::float_v fetch_alpha_32(const quint8 *data) {
  */
 template <bool aligned>
 static inline void fetch_colors_32(const quint8 *data,
-                            Vc::float_v &c1,
-                            Vc::float_v &c2,
-                            Vc::float_v &c3) {
+                            float_v &c1,
+                            float_v &c2,
+                            float_v &c3) {
     int_v data_i;
     if (aligned) {
         data_i.load((const quint32*)data, Vc::Aligned);
@@ -116,13 +123,13 @@ static inline void fetch_colors_32(const quint8 *data,
     const quint32 lowByteMask = 0xFF;
     uint_v mask(lowByteMask);
 
-    c1 = Vc::simd_cast<Vc::float_v>(int_v((data_i >> 16) & mask));
-    c2 = Vc::simd_cast<Vc::float_v>(int_v((data_i >> 8)  & mask));
-    c3 = Vc::simd_cast<Vc::float_v>(int_v( data_i        & mask));
+    c1 = Vc::simd_cast<float_v>(int_v((data_i >> 16) & mask));
+    c2 = Vc::simd_cast<float_v>(int_v((data_i >> 8)  & mask));
+    c3 = Vc::simd_cast<float_v>(int_v( data_i        & mask));
 }
 
 /**
- * Pack color and alpha values to Vc::float_v::size() pixels 32-bit each
+ * Pack color and alpha values to float_v::size() pixels 32-bit each
  * (4 channels, 8 bit per channel).  The color data is considered
  * to be stored in the 3 least significant bytes of the pixel, alpha -
  * in the most significant byte
@@ -130,10 +137,10 @@ static inline void fetch_colors_32(const quint8 *data,
  * NOTE: \p data must be aligned pointer!
  */
 static inline void write_channels_32(quint8 *data,
-                                     Vc::float_v::AsArg alpha,
-                                     Vc::float_v::AsArg c1,
-                                     Vc::float_v::AsArg c2,
-                                     Vc::float_v::AsArg c3) {
+                                     float_v::AsArg alpha,
+                                     float_v::AsArg c1,
+                                     float_v::AsArg c2,
+                                     float_v::AsArg c3) {
     /**
      * FIXME: make conversion float->int
      * use methematical rounding
